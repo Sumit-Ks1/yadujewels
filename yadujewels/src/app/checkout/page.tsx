@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import Script from "next/script";
 import { motion } from "framer-motion";
-import { ChevronLeft, CreditCard, Lock, Truck, Shield, Banknote } from "lucide-react";
+import { ChevronLeft, CreditCard, Lock, Truck, Shield, Banknote, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
@@ -79,6 +79,10 @@ export default function CheckoutPage() {
     notes: "",
   });
 
+  const [isPincodeFetching, setIsPincodeFetching] = useState(false);
+  const pincodeAbortControllerRef = useRef<AbortController | null>(null);
+  const pincodeDebounceRef = useRef<NodeJS.Timeout | null>(null);
+
   // Protect checkout route - redirect to auth if not signed in
   useEffect(() => {
     if (!authLoading && !user) {
@@ -109,6 +113,72 @@ export default function CheckoutPage() {
       setFormData((prev) => ({ ...prev, email: user.email || "" }));
     }
   }, [user, formData.email]);
+
+  /**
+   * Fetch city and state from pincode API
+   */
+  const fetchPincodeDetails = useCallback(async (pincode: string) => {
+    // Cancel any ongoing request
+    if (pincodeAbortControllerRef.current) {
+      pincodeAbortControllerRef.current.abort();
+    }
+
+    // Only fetch for valid 6-digit pincodes
+    if (pincode.length !== 6 || !/^\d{6}$/.test(pincode)) {
+      return;
+    }
+
+    setIsPincodeFetching(true);
+    pincodeAbortControllerRef.current = new AbortController();
+
+    try {
+      const response = await fetch(
+        `/api/pincode?pincode=${pincode}`,
+        { signal: pincodeAbortControllerRef.current.signal }
+      );
+
+      const data = await response.json();
+
+      if (data?.success && data.city && data.state) {
+        setFormData((prev) => ({
+          ...prev,
+          city: data.city || prev.city,
+          state: data.state || prev.state,
+        }));
+      } else if (!data?.success) {
+        console.log("[Pincode] Invalid pincode or no data found");
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name !== "AbortError") {
+        console.error("[Pincode] Fetch error:", error);
+      }
+    } finally {
+      setIsPincodeFetching(false);
+    }
+  }, []);
+
+  /**
+   * Debounced pincode lookup effect
+   */
+  useEffect(() => {
+    // Clear existing debounce timer
+    if (pincodeDebounceRef.current) {
+      clearTimeout(pincodeDebounceRef.current);
+    }
+
+    // Only trigger for 6-digit pincodes
+    if (formData.pincode.length === 6 && /^\d{6}$/.test(formData.pincode)) {
+      pincodeDebounceRef.current = setTimeout(() => {
+        fetchPincodeDetails(formData.pincode);
+      }, 500); // 500ms debounce
+    }
+
+    return () => {
+      if (pincodeDebounceRef.current) {
+        clearTimeout(pincodeDebounceRef.current);
+      }
+    };
+  }, [formData.pincode, fetchPincodeDetails]);
 
   const total = totalAmount;
 
@@ -513,15 +583,22 @@ export default function CheckoutPage() {
                     </div>
                     <div>
                       <Label htmlFor="pincode">PIN Code *</Label>
-                      <Input
-                        id="pincode"
-                        name="pincode"
-                        value={formData.pincode}
-                        onChange={handleInputChange}
-                        placeholder="6-digit PIN code"
-                        maxLength={6}
-                        required
-                      />
+                      <div className="relative">
+                        <Input
+                          id="pincode"
+                          name="pincode"
+                          value={formData.pincode}
+                          onChange={handleInputChange}
+                          placeholder="6-digit PIN code"
+                          maxLength={6}
+                          required
+                        />
+                        {isPincodeFetching && (
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <div className="md:col-span-2">
                       <Label htmlFor="address">Address *</Label>
