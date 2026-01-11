@@ -518,7 +518,7 @@ export default function AdminOrders() {
                           }
                           className="text-xs"
                         >
-                          {order.payment_method === "razorpay" ? "Razorpay" : "COD"}
+                          {order.payment_method === "cod" ? "COD" : "Razorpay"}
                         </Badge>
                       </div>
                     </div>
