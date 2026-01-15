@@ -41,7 +41,7 @@ export function BrandStory() {
               Our Story
             </span>
             <h2 className="font-heading text-4xl lg:text-5xl font-semibold mt-2 mb-6">
-              Crafting Elegance Since 1985
+              Crafting Elegance 
             </h2>
             <p className="text-muted-foreground mb-6 leading-relaxed">
               Designed for college students, young professionals, and everyday
