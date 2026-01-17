@@ -159,7 +159,7 @@ export default function ContactPage() {
                     <div>
                       <h3 className="font-medium mb-1">Call Us</h3>
                       <p className="text-muted-foreground text-sm">
-                        +91 79067 20961
+                        +91 9910362371
                         <br />
                         
                       </p>
